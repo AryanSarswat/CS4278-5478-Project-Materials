@@ -68,7 +68,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--max_steps', type=int, default=1500, help='max_steps')
 
 # You should set them to different map name and seed accordingly
-parser.add_argument('--map-name', '-m', default="zig_zag", type=str)
+parser.add_argument('--map-name', '-m', default="map4_0", type=str)
 parser.add_argument('--seed', '-s', default=1, type=int)
 parser.add_argument('--start-tile', '-st', default="1,0", type=str, help="two numbers separated by a comma")
 parser.add_argument('--goal-tile', '-gt', default="2,9", type=str, help="two numbers separated by a comma")
@@ -142,10 +142,10 @@ if args.manual:
 
         lane_lines = expert2.detect_lane(obs)
         img_lane_lines = expert2.display_lines(obs, lane_lines)
-        preprocess = expert2.steer(obs, lane_lines)
+        #preprocess = expert2.steer(obs, lane_lines)
         
         cv2.imshow("lane_lines", img_lane_lines)
-        cv2.imshow("preprocess", preprocess)
+        #cv2.imshow("preprocess", preprocess)
         
         env.render()
 

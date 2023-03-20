@@ -4,19 +4,23 @@ import math
 
 class LaneFollower:
     def __init__(self):
-        self.LOWER_WHITE = np.array([0, 0, 75])
-        self.UPPER_WHITE = np.array([150, 5, 255])
+        W_SENSITIVITY = 110
+        self.LOWER_WHITE = np.array([0, 0, 255 - W_SENSITIVITY])
+        self.UPPER_WHITE = np.array([255, W_SENSITIVITY, 255])
         
-        self.LOWER_YELLOW = np.array([20, 100, 100])
+        self.LOWER_YELLOW = np.array([20, 85, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
         
-        self.HEIGHT_CROP_SCALE = 1 / 8
+        self.HEIGHT_CROP_SCALE = 1/3.5
         
-        self.MIN_LINE_LENGTH = 3
+        self.MIN_LINE_LENGTH = 10
         self.MIN_VOTES = 5
         self.MAX_LINE_GAP = 20
         
     def detect_edges(self, img):
+        # Blur first to smoothen
+        img = cv2.medianBlur(img, 5)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
         hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 
         mask_yellow = cv2.inRange(hsv, self.LOWER_YELLOW, self.UPPER_YELLOW)
@@ -24,7 +28,6 @@ class LaneFollower:
         
         color_filter = cv2.bitwise_or(mask_yellow, mask_white)
         edges = cv2.Canny(color_filter, 200, 400)
-        
         return edges
 
     def isolate_roi(self, img):
@@ -75,7 +78,7 @@ class LaneFollower:
         left_fit = []
         right_fit = []
 
-        boundary = 1/4
+        boundary = 1/2
         left_region_boundary = width * (1 - boundary)  # left lane line segment should be on left 2/3 of the screen
         right_region_boundary = width * boundary # right lane line segment should be on left 2/3 of the screen
 
