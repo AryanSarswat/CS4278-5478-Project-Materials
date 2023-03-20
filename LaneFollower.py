@@ -8,13 +8,13 @@ class LaneFollower:
         self.LOWER_WHITE = np.array([0, 0, 255 - W_SENSITIVITY])
         self.UPPER_WHITE = np.array([255, W_SENSITIVITY, 255])
         
-        self.LOWER_YELLOW = np.array([80, 85, 20])
-        self.UPPER_YELLOW = np.array([255, 255, 30])
+        self.LOWER_YELLOW = np.array([29, 86, 20])
+        self.UPPER_YELLOW = np.array([85, 255, 255])
         
         self.HEIGHT_CROP_SCALE = 1/3.5
         
-        self.MIN_LINE_LENGTH = 80
-        self.MIN_VOTES = 30
+        self.MIN_LINE_LENGTH = 100
+        self.MIN_VOTES = 20
         self.MAX_LINE_GAP = 50
         
     def detect_edges(self, img):
@@ -143,9 +143,9 @@ class LaneFollower:
         # (x2, y2) requires a bit of trigonometry
 
         # Note: the steering angle of:
-        # 0-89 degree: turn left # -90 - 0
-        # 90 degree: going straight # 0
-        # 91-180 degree: turn right # 0 - 90
+        # 0-89 degree: turn left
+        # 90 degree: going straight 
+        # 91-180 degree: turn right 
         x1 = int(width / 2)
         y1 = height
         x2 = int(x1 - height / 2 / math.tan(steering_angle))
@@ -166,7 +166,8 @@ class LaneFollower:
 
         new_angle = self.compute_steering_angle(frame, lane_lines)
         print("new angle: ", new_angle)
-        new_angle = math.pi - new_angle if new_angle > 0 else math.pi / 2 + new_angle
+        threshold = 1e-4 # prevent sudden jumps
+        new_angle = math.pi / 2 if (abs(new_angle - 0) < threshold or abs(math.pi / 2 - new_angle) < threshold) else  math.pi / 2 + new_angle
         curr_heading_image = self.display_heading_line(frame, new_angle)
         return curr_heading_image, math.pi/2 - new_angle
     
@@ -176,8 +177,9 @@ class LaneFollower:
             return math.pi/2
         
         if len(lane_lines) == 1:
+            compensate = 0.3
             x1, y1, x2, y2 = lane_lines[0][0]
-            x_offset = x2 - x1
+            x_offset =  int((x2 - x1)*(compensate if (x2 - x1) > 0 else (1-compensate)))
         else:
             _, _, left_x2, _ = lane_lines[0][0]
             _, _, right_x2, _ = lane_lines[1][0]
