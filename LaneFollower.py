@@ -13,9 +13,9 @@ class LaneFollower:
         
         self.HEIGHT_CROP_SCALE = 1/3.5
         
-        self.MIN_LINE_LENGTH = 10
-        self.MIN_VOTES = 5
-        self.MAX_LINE_GAP = 20
+        self.MIN_LINE_LENGTH = 80
+        self.MIN_VOTES = 30
+        self.MAX_LINE_GAP = 50
         
     def detect_edges(self, img):
         # Blur first to smoothen
@@ -50,14 +50,15 @@ class LaneFollower:
         angle = np.pi / 180
         min_threshold = self.MIN_VOTES
         line_segments = cv2.HoughLinesP(img, rho, angle, min_threshold, np.array([]), minLineLength=self.MIN_LINE_LENGTH, maxLineGap=self.MAX_LINE_GAP)
-        
+        if line_segments is not None:
+            print(f"Detected {len(line_segments)} line segments")
         return line_segments
 
     def make_points(self, frame, line):
         height, width, _ = frame.shape
         slope, intercept = line
         y1 = height  # bottom of the frame
-        y2 = int(y1 * 1 / 2)  # make points from middle of the frame down
+        y2 = int(y1 * 1 / 4)  # make points from middle of the frame down
 
         # bound the coordinates within the frame
         x1 = max(-width, min(2 * width, int((y1 - intercept) / slope)))
@@ -78,9 +79,9 @@ class LaneFollower:
         left_fit = []
         right_fit = []
 
-        boundary = 1/2
+        boundary = 1/5
         left_region_boundary = width * (1 - boundary)  # left lane line segment should be on left 2/3 of the screen
-        right_region_boundary = width * boundary # right lane line segment should be on left 2/3 of the screen
+        right_region_boundary = width * boundary # right lane line segment should be on left 1/3 of the screen
 
         for line_segment in line_segments:
             for x1, y1, x2, y2 in line_segment:
@@ -115,7 +116,7 @@ class LaneFollower:
         
         return lane_lines
 
-    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=30):
+    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=15):
         line_image = np.zeros_like(frame)
         if lines is not None:
             for line in lines:
@@ -136,10 +137,9 @@ class LaneFollower:
         # 0-89 degree: turn left
         # 90 degree: going straight
         # 91-180 degree: turn right 
-        steering_angle_radian = steering_angle / 180.0 * math.pi
         x1 = int(width / 2)
         y1 = height
-        x2 = int(x1 - height / 2 / math.tan(steering_angle_radian))
+        x2 = int(x1 - height / 2 / math.tan(steering_angle))
         y2 = int(height / 2)
 
         cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
@@ -154,7 +154,7 @@ class LaneFollower:
         new_angle = self.compute_steering_angle(frame, lane_lines)
         print("new angle: ", new_angle)
         curr_heading_image = self.display_heading_line(frame, new_angle)
-        return curr_heading_image
+        return curr_heading_image, new_angle
     
     def compute_steering_angle(self, obs, lane_lines):
         height, width, _ = obs.shape

@@ -109,6 +109,8 @@ cv2.waitKey(200)
 # save map (example)
 # cv2.imwrite(env.map_name + ".png", env.get_occupancy_grid(env.map_data))
 
+obs, reward, done, info = env.step([0, 0])
+
 # main loop
 if args.manual:
     # Register a keyboard handler
@@ -116,7 +118,7 @@ if args.manual:
     env.unwrapped.window.push_handlers(key_handler)
     index = 0
     def update(dt):
-        USE_EXPERT = False
+        obs, reward, done, info = env.step([0, 0])
         action = np.array([0.0, 0.0])
 
         if key_handler[key.UP]:
@@ -131,8 +133,11 @@ if args.manual:
             action = np.array([0, 0])
         else:
             USE_EXPERT = True
-            action = expert.predict(env)
-            print("expert angle = ", action[1])
+            #action = expert.predict(env)
+            lane_lines = expert2.detect_lane(obs)
+            preprocess, angle = expert2.steer(obs, lane_lines)
+            action = [0.44, angle]
+            #print("expert angle = ", action[1])
         # Speed boost when pressing shift
         if key_handler[key.LSHIFT]:
             action *= 3
@@ -140,12 +145,10 @@ if args.manual:
         obs, reward, done, info = env.step(action)
         print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
 
-        lane_lines = expert2.detect_lane(obs)
-        img_lane_lines = expert2.display_lines(obs, lane_lines)
         #preprocess = expert2.steer(obs, lane_lines)
         
-        cv2.imshow("lane_lines", img_lane_lines)
-        #cv2.imshow("preprocess", preprocess)
+        #cv2.imshow("lane_lines", img_lane_lines)
+        cv2.imshow("preprocess", preprocess)
         
         env.render()
 
