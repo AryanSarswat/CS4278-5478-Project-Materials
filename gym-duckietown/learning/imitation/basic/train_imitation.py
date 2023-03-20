@@ -11,6 +11,7 @@ import math
 import json
 from functools import reduce
 import operator
+import os
 
 import numpy as np
 import torch
@@ -21,8 +22,9 @@ from utils.wrappers import NormalizeWrapper, ImgWrapper, \
     DtRewardWrapper, ActionWrapper, ResizeWrapper
 from utils.teacher import PurePursuitExpert
 
-from imitation.pytorch.model import Model
+from model import Model
 
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -63,7 +65,7 @@ def _train(args):
     model.train().to(device)
 
     # weight_decay is L2 regularization, helps avoid overfitting
-    optimizer = optim.SGD(
+    optimizer = optim.AdamW(
         model.parameters(),
         lr=0.0004,
         weight_decay=1e-3
@@ -83,7 +85,7 @@ def _train(args):
         loss.backward()
         optimizer.step()
 
-        loss = loss.data[0]
+        loss = loss.item()
         avg_loss = avg_loss * 0.995 + loss * 0.005
 
         print('epoch %d, loss=%.3f' % (epoch, avg_loss))
@@ -95,11 +97,11 @@ def _train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=1234, type=int, help="Sets Gym, TF, and Numpy seeds")
-    parser.add_argument("--episodes", default=3, type=int, help="Number of epsiodes for experts")
-    parser.add_argument("--steps", default=50, type=int, help="Number of steps per episode")
-    parser.add_argument("--batch-size", default=32, type=int, help="Training batch size")
-    parser.add_argument("--epochs", default=1, type=int, help="Number of training epochs")
+    parser.add_argument("--seed", default=1, type=int, help="Sets Gym, TF, and Numpy seeds")
+    parser.add_argument("--episodes", default=15, type=int, help="Number of epsiodes for experts")
+    parser.add_argument("--steps", default=100, type=int, help="Number of steps per episode")
+    parser.add_argument("--batch-size", default=128, type=int, help="Training batch size")
+    parser.add_argument("--epochs", default=100, type=int, help="Number of training epochs")
     parser.add_argument("--model-directory", default="models/", type=str, help="Where to save models")
 
     args = parser.parse_args()

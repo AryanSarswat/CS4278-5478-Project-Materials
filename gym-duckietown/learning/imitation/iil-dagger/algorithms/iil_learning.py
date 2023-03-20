@@ -86,7 +86,11 @@ class InteractiveImitationLearning:
                 print(e)
             if self._debug:
                 self.environment.render()
-            observation = next_observation
+            try:
+                observation = next_observation
+            except Exception as e:
+                break
+                
 
     # execute current control policy
     def _act(self, observation):

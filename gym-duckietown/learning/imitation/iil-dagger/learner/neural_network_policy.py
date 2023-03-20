@@ -122,7 +122,7 @@ class NeuralNetworkPolicy:
         """
         # Apply transformations to data
         observation, _ = self._transform([observation], [0])
-        observation = torch.tensor(observation)
+        observation = torch.from_numpy(np.array(observation))
         # Predict with model
         prediction = self.model.predict(observation.to(self._device))
 
@@ -139,7 +139,6 @@ class NeuralNetworkPolicy:
             ToTensor(),
             Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) # using imagenet normalization values
         ])
-        
         observations = [compose_obs(observation).numpy() for observation in observations]
         try:
             # scaling velocity to become in 0-1 range which is multiplied by max speed to get actual vel

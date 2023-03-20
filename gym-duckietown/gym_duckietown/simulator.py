@@ -322,7 +322,7 @@ class Simulator(gym.Env):
 
         if self.randomize_maps_on_reset:
             import os
-            self.map_names = os.listdir('maps')
+            self.map_names = os.listdir('gym-duckietown/gym_duckietown/map_2021')
             self.map_names = [mapfile.replace('.yaml', '') for mapfile in self.map_names]
 
         # Initialize the state
@@ -1797,7 +1797,6 @@ class Simulator(gym.Env):
 
         # Force execution of queued commands
         gl.glFlush()
-
 
 def get_dir_vec(cur_angle):
     """

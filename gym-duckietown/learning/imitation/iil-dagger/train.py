@@ -2,11 +2,11 @@ import math
 from gym_duckietown.envs import DuckietownEnv  
 import argparse
 
-from .teacher import PurePursuitPolicy
-from .learner import NeuralNetworkPolicy
-from .model import Squeezenet
-from .algorithms import DAgger
-from .utils import MemoryMapDataset
+from teacher import PurePursuitPolicy
+from learner import NeuralNetworkPolicy
+from model import Squeezenet
+from algorithms import DAgger
+from utils import MemoryMapDataset
 import torch
 import os
 
@@ -27,20 +27,20 @@ def teacher(env, max_velocity):
 
 def process_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--episode', '-i', default=10, type=int)
-    parser.add_argument('--horizon', '-r', default=64, type=int)
+    parser.add_argument('--episode', '-i', default=50, type=int)
+    parser.add_argument('--horizon', '-r', default=150, type=int)
     parser.add_argument('--learning-rate', '-l', default=2, type=int)
     parser.add_argument('--decay', '-d', default=2, type=int)
     parser.add_argument('--save-path', '-s', default='iil_baseline', type=str)
-    parser.add_argument('--map-name', '-m', default="loop_empty", type=str)
+    parser.add_argument('--map-name', '-m', default="zig_zag", type=str)
     parser.add_argument('--num-outputs', '-n', default=2, type=int)
     return parser
 
 if __name__ == '__main__':
     parser = process_args()
     input_shape = (120,160)
-    batch_size = 16
-    epochs = 10
+    batch_size = 128
+    epochs = 25
     learning_rates = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
     # decays
     mixing_decays = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95]

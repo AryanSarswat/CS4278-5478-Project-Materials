@@ -9,6 +9,7 @@ import time
 import sys
 import argparse
 import math
+import os
 
 import torch
 
@@ -20,7 +21,9 @@ from utils.wrappers import NormalizeWrapper, ImgWrapper, \
     DtRewardWrapper, ActionWrapper, ResizeWrapper
 from utils.teacher import PurePursuitExpert
 
-from imitation.pytorch.model import Model
+from model import Model
+
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -28,7 +31,7 @@ def _enjoy():
     model = Model(action_dim=2, max_action=1.)
 
     try:
-        state_dict = torch.load('trained_models/imitate.pt', map_location=device)
+        state_dict = torch.load('imitation/pytorch/models/imitate.pt', map_location=device)
         model.load_state_dict(state_dict)
     except:
         print('failed to load model')

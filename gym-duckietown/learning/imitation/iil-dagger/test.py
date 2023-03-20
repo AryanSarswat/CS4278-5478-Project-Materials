@@ -1,7 +1,7 @@
-from .train import launch_env, teacher
-from .learner import NeuralNetworkPolicy
-from .model import Squeezenet
-from .algorithms import DAgger
+from train import launch_env, teacher
+from learner import NeuralNetworkPolicy
+from model import Squeezenet
+from algorithms import DAgger
 import argparse
 import os
 
@@ -10,8 +10,8 @@ def process_args():
     parser.add_argument('--episode', '-i', default=10, type=int)
     parser.add_argument('--horizon', '-r', default=64, type=int)
     parser.add_argument('--num-outputs', '-n', default=2, type=int)
-    parser.add_argument('--model-path', '-mp', default="", type=str)
-    parser.add_argument('--map-name', '-m', default="loop_empty", type=str)
+    parser.add_argument('--model-path', '-mp', default="iil_baseline/model.pt", type=str)
+    parser.add_argument('--map-name', '-m', default="map5_0", type=str)
     return parser
 
 if __name__ == '__main__':
@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     config = parser.parse_args()
     # launching environment and testing on different maps using map randomization
-    environment = launch_env(config.map_name, randomize_maps_on_reset=True)
+    environment = launch_env(config.map_name, randomize_maps_on_reset=False)
     
     task_horizon = config.horizon
     task_episode = config.episode
