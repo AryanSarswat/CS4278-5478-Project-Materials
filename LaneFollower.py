@@ -8,8 +8,8 @@ class LaneFollower:
         self.LOWER_WHITE = np.array([0, 0, 255 - W_SENSITIVITY])
         self.UPPER_WHITE = np.array([255, W_SENSITIVITY, 255])
         
-        self.LOWER_YELLOW = np.array([20, 85, 80])
-        self.UPPER_YELLOW = np.array([30, 255, 255])
+        self.LOWER_YELLOW = np.array([80, 85, 20])
+        self.UPPER_YELLOW = np.array([255, 255, 30])
         
         self.HEIGHT_CROP_SCALE = 1/3.5
         
@@ -21,13 +21,15 @@ class LaneFollower:
         # Blur first to smoothen
         img = cv2.medianBlur(img, 5)
         img = cv2.GaussianBlur(img, (5, 5), 0)
-        hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         mask_yellow = cv2.inRange(hsv, self.LOWER_YELLOW, self.UPPER_YELLOW)
         mask_white = cv2.inRange(hsv, self.LOWER_WHITE, self.UPPER_WHITE)
         
         color_filter = cv2.bitwise_or(mask_yellow, mask_white)
+        cv2.imshow("after filter colors", color_filter)
         edges = cv2.Canny(color_filter, 200, 400)
+        cv2.imshow("canny result", edges)
         return edges
 
     def isolate_roi(self, img):
@@ -43,15 +45,22 @@ class LaneFollower:
         
         cv2.fillPoly(mask, polygon, 255)
         cropped_edges = cv2.bitwise_and(img, mask)
+        cv2.imshow("ROI", cropped_edges)
         return cropped_edges
 
     def detect_line_segments(self, img):
         rho = 1
         angle = np.pi / 180
         min_threshold = self.MIN_VOTES
-        line_segments = cv2.HoughLinesP(img, rho, angle, min_threshold, np.array([]), minLineLength=self.MIN_LINE_LENGTH, maxLineGap=self.MAX_LINE_GAP)
+        line_segments = cv2.HoughLinesP(image=img, rho=rho, theta=angle, threshold=min_threshold, minLineLength=self.MIN_LINE_LENGTH, maxLineGap=self.MAX_LINE_GAP)
         if line_segments is not None:
             print(f"Detected {len(line_segments)} line segments")
+
+            dupeImg = img.copy()
+            for line in line_segments:
+                for x1, y1, x2, y2 in line:
+                    cv2.line(dupeImg, (x1, y1), (x2, y2), (255,255,255), 3, cv2.LINE_AA)
+            cv2.imshow("houghlines", dupeImg)  
         return line_segments
 
     def make_points(self, frame, line):
@@ -79,7 +88,7 @@ class LaneFollower:
         left_fit = []
         right_fit = []
 
-        boundary = 1/5
+        boundary = 1/2
         left_region_boundary = width * (1 - boundary)  # left lane line segment should be on left 2/3 of the screen
         right_region_boundary = width * boundary # right lane line segment should be on left 1/3 of the screen
 
@@ -134,9 +143,9 @@ class LaneFollower:
         # (x2, y2) requires a bit of trigonometry
 
         # Note: the steering angle of:
-        # 0-89 degree: turn left
-        # 90 degree: going straight
-        # 91-180 degree: turn right 
+        # 0-89 degree: turn left # -90 - 0
+        # 90 degree: going straight # 0
+        # 91-180 degree: turn right # 0 - 90
         x1 = int(width / 2)
         y1 = height
         x2 = int(x1 - height / 2 / math.tan(steering_angle))
@@ -149,20 +158,25 @@ class LaneFollower:
     
     def steer(self, frame, lane_lines):
         if len(lane_lines) == 0:
-            return frame
+            return frame, 0
         
+        for line in lane_lines:
+            for x1, y1, x2, y2 in line:
+                cv2.line(frame, (x1, y1), (x2, y2), (0,255,0), 3, cv2.LINE_AA)
+
         new_angle = self.compute_steering_angle(frame, lane_lines)
         print("new angle: ", new_angle)
+        new_angle = math.pi - new_angle if new_angle > 0 else math.pi / 2 + new_angle
         curr_heading_image = self.display_heading_line(frame, new_angle)
-        return curr_heading_image, new_angle
+        return curr_heading_image, math.pi/2 - new_angle
     
     def compute_steering_angle(self, obs, lane_lines):
         height, width, _ = obs.shape
         if len(lane_lines) == 0:
-            return 0
+            return math.pi/2
         
         if len(lane_lines) == 1:
-            x1, _, x2, _ = lane_lines[0][0]
+            x1, y1, x2, y2 = lane_lines[0][0]
             x_offset = x2 - x1
         else:
             _, _, left_x2, _ = lane_lines[0][0]
@@ -173,7 +187,10 @@ class LaneFollower:
         
         y_offset = int(height / 2)
         angle_to_mid_radian = math.atan(x_offset / y_offset)  # angle (in radian) to center vertical line
-        steering_angle = angle_to_mid_radian + math.pi / 2
+        steering_angle = angle_to_mid_radian 
+        # if len(lane_lines ) == 2:
+        #     print("Adjusting for only 1 lane")
+        #     steering_angle = math.pi/2 + steering_angle # to correct to same gradient
         
         return steering_angle
     

@@ -143,6 +143,7 @@ if args.manual:
             action *= 3
 
         obs, reward, done, info = env.step(action)
+        cv2.waitKey()
         print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
 
         #preprocess = expert2.steer(obs, lane_lines)
