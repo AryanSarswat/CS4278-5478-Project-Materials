@@ -11,13 +11,12 @@ class LaneFollower:
         self.LOWER_YELLOW = np.array([20, 85, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
         
-        self.HEIGHT_CROP_SCALE = 1/3
+        self.HEIGHT_CROP_SCALE = 1/2
         
         self.MIN_LINE_LENGTH = 150
         self.MIN_VOTES = 30
         self.MAX_LINE_GAP = 100
         self.prev_angle = 0
-        
         
     def detect_edges(self, img):
         # Blur first to smoothen
@@ -30,6 +29,8 @@ class LaneFollower:
         
         edges_white = cv2.Canny(mask_white, 200, 400)
         edges_yellow = cv2.Canny(mask_yellow, 200, 400)
+        
+
         
         return edges_white, edges_yellow
 
@@ -133,6 +134,9 @@ class LaneFollower:
         edges_w, edges_y = self.detect_edges(frame)
         cropped_edges_w, cropped_edges_y = self.isolate_roi(edges_w), self.isolate_roi(edges_y)
         
+        cv2.imshow("edges_w", cropped_edges_w)
+        cv2.imshow("edges_y", cropped_edges_y)
+        
         line_segments_w, line_segments_y = self.detect_line_segments(cropped_edges_w), self.detect_line_segments(cropped_edges_y)
         
         lane_lines_w = self.average_line(frame, line_segments_w)
@@ -234,7 +238,7 @@ class LaneFollower:
         return angle_to_mid_radian
     
     def stabilize_steering_angle(self, steering_angle, new_steering_angle):
-        max_angle_deviation = math.pi / 16
+        max_angle_deviation = math.pi / 2
         angle_deviation = new_steering_angle - steering_angle
         if abs(angle_deviation) > max_angle_deviation:
             stabilized_steering_angle = steering_angle + (max_angle_deviation * angle_deviation / abs(angle_deviation))

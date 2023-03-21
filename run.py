@@ -132,10 +132,10 @@ if args.manual:
         elif key_handler[key.SPACE]:
             action = np.array([0, 0])
         else:
-            #action = expert.predict(env)
+        #     #action = expert.predict(env)
             preprocess, angle = expert2.steer(obs)
-            action = [0.6, angle]
-            #print("expert angle = ", action[1])
+            action = [0.44, angle]
+        #     #print("expert angle = ", action[1])
         # Speed boost when pressing shift
         if key_handler[key.LSHIFT]:
             action *= 3
@@ -143,6 +143,9 @@ if args.manual:
         if key_handler[key.SPACE]:
             print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
         
+        
+        preprocess, angle = expert2.steer(obs)
+        print("expert angle = ", angle)
         obs, reward, done, info = env.step(action)
 
         #cv2.imshow("lane_lines", img_lane_lines)
