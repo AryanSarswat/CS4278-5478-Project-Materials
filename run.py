@@ -96,7 +96,7 @@ env.render()
 expert = PurePursuitExpert(env)
 expert2 = LaneFollower()
 map_img, goal, start_pos = env.get_task_info()
-expert_map = Expert(map_img)
+expert_map = Expert(map_img, env)
 
 print("start tile:", start_pos, " goal tile:", goal)
 

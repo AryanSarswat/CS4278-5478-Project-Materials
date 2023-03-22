@@ -59,7 +59,7 @@ class Expert:
         self.STRAIGHT = [0.44, 0]
         self.env = env
         
-        lane_follower = LaneFollower()
+        self.lane_follower = LaneFollower()
 
         self.map = map
         
@@ -92,9 +92,11 @@ class Expert:
         for _ in range(5):
             self.env.step(self.RIGHT)
             
-    def lane_follow(self):
-        for _ in range(10):
-            self.env.step(self.STRAIGHT)
+    def lane_follow(self, obs):
+        for _ in range(3):
+            angle = self.lane_follower.steer(obs)
+            obs, reward, done, info = self.env.step([0.3, angle])
+        return info['cur_pos'], obs
     
     def predict_high_level_actions(self, curr_coord, goal_coord):
         start_node = Node(None, curr_coord)
@@ -182,5 +184,46 @@ class Expert:
                         print("Invalid heading")
                 
             return actions
+    
+    def get_init_state(self):
+        map_img, goal, start_pos = self.env.get_task_info()
+        while True:
+            new_state, map_img = self.lane_follow(map_img)
+            if info['cur_pos'] != start_pos:
+                break
+        
+        dx = new_state[0] - start_pos[0]
+        dy = new_state[1] - start_pos[1]
+        heading = None
+        
+        if dx > 0:
+            heading = 1
+        elif dx < 0:
+            heading = 2
+        elif dy > 0:
+            heading = 3
+        elif dy < 0:
+            heading = 0
+            
+        return (new_state[0], new_state[1], heading), (goal[0], goal[1], heading), map_img
+        
+    def run(self):
+        start_pos, goal_pos, map_img = self.get_init_state()
+        
+        actions = self.predict_high_level_actions(start_pos, goal_pos)
+        
+        while len(actions) > 0:
+            cur_action = actions.pop(0)
+            
+            if cur_action == "straight":
+                self.lane_follow(map_img)
+            elif cur_action == "left":
+                self.turn_left()
+            elif cur_action == "right":
+                self.turn_right()
+        
+        print("Reached goal")
+            
+    
         
         
