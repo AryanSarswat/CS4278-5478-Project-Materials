@@ -8,7 +8,7 @@ from pyglet.window import key
 import sys
 import cv2
 from LaneFollower import LaneFollower
-
+from expert import Expert
 
 class PurePursuitExpert:
     def __init__(self, env, ref_velocity=0.8, position_threshold=0.04,
@@ -69,9 +69,9 @@ parser.add_argument('--max_steps', type=int, default=1500, help='max_steps')
 
 # You should set them to different map name and seed accordingly
 parser.add_argument('--map-name', '-m', default="map4_0", type=str)
-parser.add_argument('--seed', '-s', default=1, type=int)
-parser.add_argument('--start-tile', '-st', default="1,0", type=str, help="two numbers separated by a comma")
-parser.add_argument('--goal-tile', '-gt', default="2,9", type=str, help="two numbers separated by a comma")
+parser.add_argument('--seed', '-s', default=4, type=int)
+parser.add_argument('--start-tile', '-st', default="3,3", type=str, help="two numbers separated by a comma")
+parser.add_argument('--goal-tile', '-gt', default="10,4", type=str, help="two numbers separated by a comma")
 parser.add_argument('--control_path', default='./map4_0_seed2_start_1,13_goal_3,3.txt', type=str,
                     help="the control file to run")
 parser.add_argument('--manual', default=False, type=str2bool, help="whether to manually control the robot")
@@ -85,7 +85,7 @@ env = DuckietownEnv(
     max_steps=1500,
     map_name=args.map_name,
     seed=args.seed,
-    user_tile_start=None,
+    user_tile_start=args.start_tile,
     goal_tile=None,
     randomize_maps_on_reset=False
 )
@@ -96,6 +96,8 @@ env.render()
 expert = PurePursuitExpert(env)
 expert2 = LaneFollower()
 map_img, goal, start_pos = env.get_task_info()
+expert_map = Expert(map_img)
+
 print("start tile:", start_pos, " goal tile:", goal)
 
 # Show the map image
@@ -106,10 +108,50 @@ print("start tile:", start_pos, " goal tile:", goal)
 cv2.imshow("map", map_img)
 cv2.waitKey(200)
 
+
+
 # save map (example)
 # cv2.imwrite(env.map_name + ".png", env.get_occupancy_grid(env.map_data))
 
-obs, reward, done, info = env.step([0, 0])
+obs, reward, done, info = env.step([1, 1])
+
+
+cv2.namedWindow("left_speed")
+cv2.namedWindow("right_speed")
+cv2.namedWindow("left_angle")
+cv2.namedWindow("right_angle")
+
+class Action:
+    def __init__(self):
+        self.left_speed = 0
+        self.right_speed = 0
+        self.left_angle = 0
+        self.right_angle = 0
+        
+    def update_left_speed(self, val):
+        self.left_speed = val * 1.2 / 100
+    
+    def update_right_speed(self, val):
+        self.right_speed = val * 1.2 / 100
+        
+    def update_left_angle(self, val):
+        self.left_angle = val * np.pi / 100
+    
+    def update_right_angle(self, val):
+        self.right_angle = val * -np.pi / 100
+        
+    def get_left_action(self):
+        return np.array([self.left_speed, self.left_angle])
+
+    def get_right_action(self):
+        return np.array([self.right_speed, self.right_angle])
+
+actions_table = Action()
+
+cv2.createTrackbar("left_speed", "left_speed", 0, 100, actions_table.update_left_speed)
+cv2.createTrackbar("right_speed", "right_speed", 0, 100, actions_table.update_right_speed)
+cv2.createTrackbar("left_angle", "left_angle", 0, 100, actions_table.update_left_angle)
+cv2.createTrackbar("right_angle", "right_angle", 0, 100, actions_table.update_right_angle)
 
 # main loop
 if args.manual:
@@ -126,17 +168,17 @@ if args.manual:
         elif key_handler[key.DOWN]:
             action = np.array([-0.44, 0])
         elif key_handler[key.LEFT]:
-            action = np.array([0.44, +1])
+            action = actions_table.get_left_action()
         elif key_handler[key.RIGHT]:
-            action = np.array([0.44, -1])
+            action = actions_table.get_right_action()
         elif key_handler[key.SPACE]:
             action = np.array([0, 0])
-        else:
-        #     #action = expert.predict(env)
-            preprocess, angle = expert2.steer(obs)
-            action = [0.44, angle]
-        #     #print("expert angle = ", action[1])
-        # Speed boost when pressing shift
+        # else:
+        # #     #action = expert.predict(env)
+        #     preprocess, angle = expert2.steer(obs)
+        #     action = [0.3, angle]
+        # #     #print("expert angle = ", action[1])
+        # # Speed boost when pressing shift
         if key_handler[key.LSHIFT]:
             action *= 3
         

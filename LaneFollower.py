@@ -6,7 +6,7 @@ class LaneFollower:
     def __init__(self):
         self.W_SENSITIVITY = 95
         self.LOWER_WHITE = np.array([0, 0, 255 - self.W_SENSITIVITY])
-        self.UPPER_WHITE = np.array([255, self.W_SENSITIVITY, 255])
+        self.UPPER_WHITE = np.array([255, self.W_SENSITIVITY, 235])
         
         self.LOWER_YELLOW = np.array([20, 85, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
@@ -17,11 +17,11 @@ class LaneFollower:
         self.MIN_VOTES = 30
         self.MAX_LINE_GAP = 100
         self.prev_angle = 0
-        
+
     def detect_edges(self, img):
         # Blur first to smoothen
         img = cv2.medianBlur(img, 5)
-        img = cv2.GaussianBlur(img, (5, 5), 0)
+        img = cv2.GaussianBlur(img, (5, 5), 1)
         hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 
         mask_yellow = cv2.inRange(hsv, self.LOWER_YELLOW, self.UPPER_YELLOW)
@@ -29,10 +29,9 @@ class LaneFollower:
         
         edges_white = cv2.Canny(mask_white, 200, 400)
         edges_yellow = cv2.Canny(mask_yellow, 200, 400)
+        edges_combined = cv2.bitwise_or(edges_white, edges_yellow)
         
-
-        
-        return edges_white, edges_yellow
+        return edges_white, edges_yellow, edges_combined
 
     def isolate_roi(self, img):
         h, w = img.shape
@@ -67,11 +66,14 @@ class LaneFollower:
         x2 = max(-width, min(2 * width, int((y2 - intercept) / slope)))
         return [[x1, y1, x2, y2]]
     
-    def average_line(self, frame, line_segments):
+    def average_line(self, frame, line_segments, white=False):
+        height, width, _ = frame.shape
         if line_segments is None:
             return []
         
         slope_intercepts = []
+        boundary = 1/2
+        left_region_boundary = width * (1 - boundary)
         
         for line_segment in line_segments:
             for x1, y1, x2, y2 in line_segment:
@@ -80,6 +82,8 @@ class LaneFollower:
                 fit = np.polyfit((x1, x2), (y1, y2), 1)
                 slope = fit[0]
                 intercept = fit[1]
+                if white and slope < 0 and x1 < left_region_boundary:
+                    continue
                 slope_intercepts.append((slope, intercept))
         
         if len(slope_intercepts) == 0:
@@ -131,18 +135,19 @@ class LaneFollower:
         return lane_lines
 
     def detect_lane(self, frame):
-        edges_w, edges_y = self.detect_edges(frame)
-        cropped_edges_w, cropped_edges_y = self.isolate_roi(edges_w), self.isolate_roi(edges_y)
+        edges_w, edges_y, edges_combined = self.detect_edges(frame)
+        cropped_edges_w, cropped_edges_y, cropped_combined = self.isolate_roi(edges_w), self.isolate_roi(edges_y), self.isolate_roi(edges_combined)
         
         cv2.imshow("edges_w", cropped_edges_w)
         cv2.imshow("edges_y", cropped_edges_y)
         
-        line_segments_w, line_segments_y = self.detect_line_segments(cropped_edges_w), self.detect_line_segments(cropped_edges_y)
+        line_segments_w, line_segments_y, line_segments_combined = self.detect_line_segments(cropped_edges_w), self.detect_line_segments(cropped_edges_y), self.detect_line_segments(cropped_combined)
         
-        lane_lines_w = self.average_line(frame, line_segments_w)
-        lane_lines_y = self.average_line(frame, line_segments_y)
-
-        return lane_lines_w, lane_lines_y
+        lane_lines_w = self.average_slope_intercept(frame, line_segments_w)
+        lane_lines_y = self.average_slope_intercept(frame, line_segments_y)
+        lane_lines_comb = self.average_slope_intercept(frame, line_segments_combined)
+        
+        return lane_lines_w, lane_lines_y, lane_lines_comb
     
     def display_one_line(self, frame, line, line_color=(0, 255, 0), line_width=15):
         line_image = np.zeros_like(frame)
@@ -188,19 +193,22 @@ class LaneFollower:
         return heading_image
     
     def steer(self, frame):
-        lane_lines_w, lane_lines_y = self.detect_lane(frame)
+        lane_lines_w, lane_lines_y, lane_lines_combined = self.detect_lane(frame)
         
-        display_lines_w = self.display_one_line(frame, lane_lines_w)
-        display_lines_y = self.display_one_line(frame, lane_lines_y)
+        #display_lines_w = self.display_one_line(frame, lane_lines_w)
+        #display_lines_y = self.display_one_line(frame, lane_lines_y)
+        lane_lines_combined_img = self.display_lines(frame, lane_lines_combined)
         
-        cv2.imshow("White Lines", display_lines_w)
-        cv2.imshow("Yellow Lines", display_lines_y)
+        #cv2.imshow("White Lines", display_lines_w)
+        #cv2.imshow("Yellow Lines", display_lines_y)
+        cv2.imshow("Comb Lines", lane_lines_combined_img)
         
-        if len(lane_lines_w) == 0 and len(lane_lines_y) == 0:
-            return frame, 0
+        # if len(lane_lines_w) == 0 and len(lane_lines_y) == 0:
+        #     return frame, 0
         
-        new_angle = self.compute_steering_angle(frame, lane_lines_w, lane_lines_y)
-        new_angle = self.stabilize_steering_angle(self.prev_angle, new_angle)
+        #new_angle = self.compute_steering_angle(frame, lane_lines_w, lane_lines_y)
+        new_angle = self.compute_steering_angle_comb(frame, lane_lines_combined)
+        new_angle = self.stabilize_steering_angle_comb(self.prev_angle, new_angle, len(lane_lines_combined))
         self.prev_angle = new_angle
         curr_heading_image = self.display_heading_line(frame, new_angle)
         return curr_heading_image, new_angle
@@ -229,13 +237,52 @@ class LaneFollower:
             x_offset = mid - mid_of_lanes
             
             angle_to_mid_radian = math.atan(x_offset / y_offset)
-            
-            if x2_w < x2_y:
-                angle_to_mid_radian = -angle_to_mid_radian
-
-            
         
         return angle_to_mid_radian
+    
+    def compute_steering_angle_comb(self, frame, lane_lines):
+        if len(lane_lines) == 0:
+            return 0
+
+        height, width, _ = frame.shape
+        if len(lane_lines) == 1:
+            x1, _, x2, _ = lane_lines[0][0]
+            x_offset = x2 - x1
+            
+            if x1 > width / 1.5 and x_offset < 0:
+                x_offset = -x_offset
+                
+            if x1 < width / 3.5 and x_offset > 0:
+                x_offset = -x_offset
+                
+        else:
+            _, _, left_x2, _ = lane_lines[0][0]
+            _, _, right_x2, _ = lane_lines[1][0]
+            camera_mid_offset_percent = 0.02 # 0.0 means car pointing to center, -0.03: car is centered to left, +0.03 means car pointing to right
+            mid = int((width / 2) * (1 + camera_mid_offset_percent))
+            x_offset = (left_x2 + right_x2) / 2 - mid
+
+        # find the steering angle, which is angle between navigation direction to end of center line
+        y_offset = int(height / 2)
+
+        angle_to_mid_radian = math.atan(x_offset / y_offset)  # angle (in radian) to center vertical 
+
+        return angle_to_mid_radian
+    
+    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=10*np.pi/180, max_angle_deviation_one_lane=5*np.pi/180):
+        if num_of_lane_lines == 2 :
+            # if both lane lines detected, then we can deviate more
+            max_angle_deviation = max_angle_deviation_two_lines
+        else :
+            # if only one lane detected, don't deviate too much
+            max_angle_deviation = max_angle_deviation_one_lane
+        
+        angle_deviation = new_steering_angle - curr_steering_angle
+        if abs(angle_deviation) > max_angle_deviation:
+            stabilized_steering_angle = curr_steering_angle + (max_angle_deviation * angle_deviation / abs(angle_deviation))
+        else:
+            stabilized_steering_angle = new_steering_angle
+        return stabilized_steering_angle
     
     def stabilize_steering_angle(self, steering_angle, new_steering_angle):
         max_angle_deviation = math.pi / 2
