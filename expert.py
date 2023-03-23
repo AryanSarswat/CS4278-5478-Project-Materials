@@ -1,11 +1,10 @@
 import numpy as np
 from LaneFollower import LaneFollower
-import heapq
 
 class Expert:
     def __init__(self, high_level_path):
         self.LEFT = [0.5, 0.7]
-        self.RIGHT = [0.25, -0.9]
+        self.RIGHT = [0.25, -0.85]
         self.STRAIGHT = [0.4, 0]
         self.FAST_STRAIGHT = [1, 0]
         
@@ -70,7 +69,10 @@ class Expert:
         return np.array([0.4, angle])
     
     def predict(self, coord, obs):
-        action = self.actions[coord]
+        try:
+            action = self.actions[coord]
+        except KeyError:
+            action = "forward"
         if action == "left":
             angle = self.lane_follower.steer(obs)
             if abs(angle) > 0.1:

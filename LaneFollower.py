@@ -11,7 +11,7 @@ class LaneFollower:
         self.LOWER_YELLOW = np.array([20, 85, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
         
-        self.HEIGHT_CROP_SCALE = 1/2
+        self.HEIGHT_CROP_SCALE = 1/2.25
         
         self.MIN_LINE_LENGTH = 150
         self.MIN_VOTES = 30
@@ -263,7 +263,7 @@ class LaneFollower:
 
         return angle_to_mid_radian
     
-    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=15*np.pi/180):
+    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=20*np.pi/180):
         if num_of_lane_lines == 2 :
             # if both lane lines detected, then we can deviate more
             max_angle_deviation = max_angle_deviation_two_lines

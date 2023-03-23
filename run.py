@@ -67,7 +67,7 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     actions_taken = []
     
     step = 0
-    max_step = 25
+    max_step = 40
     line_detected = False
     # Initial lane following
     while True:
@@ -76,11 +76,11 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
             line_detected = True
         angle = expert.predict(info['curr_pos'], obs)[1]
         if angle < 0:
-            action = np.array([-0.01, angle * 0.5])
+            action = np.array([-0.1, angle])
         elif angle > 0:
-            action = np.array([-0.01, angle * 0.5])
+            action = np.array([-0.1, angle])
         else:
-            action = np.array([-0.1, 0])
+            action = np.array([-0.2, 0])
 
         obs, reward, done, info = env.step(action)
         actions_taken.append(action)
@@ -132,7 +132,7 @@ for test in test_cases:
         MAP_5.append(test)
 
 
-# for test in MAP_5:
+# for test in MAP_4:
 #     map_name = test
 #     seed = test_cases[test]["seed"][0]
 #     start = list2str(test_cases[test]["start"])
@@ -141,7 +141,7 @@ for test in test_cases:
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-map_name = "map5_4"
+map_name = "map4_1"
 seed = test_cases[map_name]["seed"][0]
 start = list2str(test_cases[map_name]["start"])
 goal = list2str(test_cases[map_name]["goal"])
