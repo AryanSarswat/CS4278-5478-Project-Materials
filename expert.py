@@ -4,12 +4,12 @@ import heapq
 
 class Expert:
     def __init__(self, high_level_path):
-        self.LEFT = [0.5, 0.7]
-        self.RIGHT = [0.3, -1]
-        self.STRAIGHT = [0.44, 0]
+        self.LEFT = [0.5, 0.65]
+        self.RIGHT = [0.3, -0.9]
+        self.STRAIGHT = [0.5, 0]
         
         self.lane_follower = LaneFollower()
-        
+        self.reached = False
         self.actions = dict()
         
         # Load actions 
@@ -35,6 +35,15 @@ class Expert:
             coord = (x, y)
             self.actions[coord] = action
         
+        goal = temp[-1]
+        index = goal.find(",", goal.find(",") + 1)
+        coords = goal[:index]
+        x = int(coords[1:coords.find(",")])
+        y = int(coords[coords.find(",") + 1:-1])
+        coord = (x, y)
+        action = "stay"
+        self.actions[coord] = action
+        
     def turn_left(self, obs):
         return self.LEFT
             
@@ -43,7 +52,9 @@ class Expert:
             
     def go_straight(self, obs):
         obs, angle = self.lane_follower.steer(obs)
-        return np.array([0.3, angle])
+        if angle == 0:
+            return self.STRAIGHT
+        return np.array([0.4, angle])
     
     def predict(self, coord, obs):
         action = self.actions[coord]
@@ -61,12 +72,17 @@ class Expert:
                 return self.turn_right(obs)
         elif action == "forward":
             return self.go_straight(obs)
+        elif action == "stay":
+            if self.reached:
+                return np.array([0, 0])
+            self.reached = True
+            return np.array([1, 0])
         else:
             print("Error: invalid action")
 
 
 if __name__ == "__main__":
-    t = Expert(None, "testcases/milestone1_paths/map4_0_seed4_start_3,3_goal_10,4.txt")
+    t = Expert("testcases/milestone1_paths/map4_0_seed4_start_3,3_goal_10,4.txt")
     
         
         
