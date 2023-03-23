@@ -64,21 +64,25 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     
     obs, reward, done, info = env.step([0, 0])
     
+    actions_taken = []
+    
+    line_detected = False
     while True:
         angle = expert.predict(info['curr_pos'], obs)[1]
         num_lines = expert.num_lines_detected(obs)
-        if num_lines > 0 and angle < 0.07:
+        print("angle:", angle, "num_lines:", num_lines)
+        if num_lines > 0 and abs(angle) < 0.1:
             break
         if angle < 0:
-            action = np.array([0, -0.2])
+            action = np.array([0, angle])
         elif angle > 0:
-            action = np.array([0, 0.2])
+            action = np.array([0, angle])
         else:
-            action = np.array([0, 0.15])
+            action = np.array([0.01, 0])
         obs, reward, done, info = env.step(action)
+        actions_taken.append(action)
         env.render()
-    
-    actions_taken = []
+        
     
     while info['curr_pos'] != goal:
         curr_pos = info['curr_pos']
@@ -104,7 +108,7 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-map_name = "map3_0"
+map_name = "map1_2"
 seed = test_cases[map_name]["seed"][0]
 start = list2str(test_cases[map_name]["start"])
 goal = list2str(test_cases[map_name]["goal"])

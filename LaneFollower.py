@@ -13,8 +13,8 @@ class LaneFollower:
         
         self.HEIGHT_CROP_SCALE = 1/2.5
         
-        self.MIN_LINE_LENGTH = 150
-        self.MIN_VOTES = 30
+        self.MIN_LINE_LENGTH = 125
+        self.MIN_VOTES = 20
         self.MAX_LINE_GAP = 100
         self.prev_angle = 0
 
@@ -189,53 +189,38 @@ class LaneFollower:
 
         return heading_image
     
+    def distance_to_yellow(self, frame, lane_lines_y):
+        height, width, _ = frame.shape
+        if lane_lines_y is not None:
+            for line in lane_lines_y:
+                for x1, y1, x2, y2 in line:
+                    if x1 > width/2:
+                        return width - x1
+                    else:
+                        return x1
+        return 0
+        
+    
     def steer(self, frame):
         lane_lines_w, lane_lines_y, lane_lines_combined = self.detect_lane(frame)
         
-        #display_lines_w = self.display_one_line(frame, lane_lines_w)
-        #display_lines_y = self.display_one_line(frame, lane_lines_y)
+
         lane_lines_combined_img = self.display_lines(frame, lane_lines_combined)
         
-        #cv2.imshow("White Lines", display_lines_w)
-        #cv2.imshow("Yellow Lines", display_lines_y)
         cv2.imshow("Comb Lines", lane_lines_combined_img)
         
-        # if len(lane_lines_w) == 0 and len(lane_lines_y) == 0:
-        #     return frame, 0
+        dist_y = self.distance_to_yellow(frame, lane_lines_y)
         
-        #new_angle = self.compute_steering_angle(frame, lane_lines_w, lane_lines_y)
         new_angle = self.compute_steering_angle_comb(frame, lane_lines_combined)
+        
+        # If it ends up in the wrong lane
+        if dist_y < -50:
+            new_angle -= np.pi
+        
         new_angle = self.stabilize_steering_angle_comb(self.prev_angle, new_angle, len(lane_lines_combined))
         self.prev_angle = new_angle
         curr_heading_image = self.display_heading_line(frame, new_angle)
         return curr_heading_image, new_angle
-    
-    def compute_steering_angle(self, obs, lane_line_w, lane_line_y):
-        height, width, _ = obs.shape
-        y_offset = int(height / 2)
-        
-        if len(lane_line_w) == 0 and len(lane_line_y) == 0:
-            return 0
-        
-        elif len(lane_line_w) == 0:
-            x1, _, x2, _ = lane_line_y[0]
-            x_offset = x1 - x2
-            angle_to_mid_radian = math.atan(x_offset / y_offset)
-        elif len(lane_line_y) == 0:
-            x1, _, x2, _ = lane_line_w[0]
-            x_offset = x1 - x2
-            angle_to_mid_radian = math.atan(x_offset / y_offset)
-        else:
-            _, _, x2_w, _ = lane_line_w[0]
-            _, _, x2_y, _ = lane_line_y[0]
-            mid = int(width / 2)
-            
-            mid_of_lanes = (x2_w + x2_y) / 2
-            x_offset = mid - mid_of_lanes
-            
-            angle_to_mid_radian = math.atan(x_offset / y_offset)
-        
-        return angle_to_mid_radian
     
     def compute_steering_angle_comb(self, frame, lane_lines):
         if len(lane_lines) == 0:
@@ -266,7 +251,7 @@ class LaneFollower:
 
         return angle_to_mid_radian
     
-    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=10*np.pi/180):
+    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=8*np.pi/180):
         if num_of_lane_lines == 2 :
             # if both lane lines detected, then we can deviate more
             max_angle_deviation = max_angle_deviation_two_lines
@@ -279,14 +264,4 @@ class LaneFollower:
             stabilized_steering_angle = curr_steering_angle + (max_angle_deviation * angle_deviation / abs(angle_deviation))
         else:
             stabilized_steering_angle = new_steering_angle
-        return stabilized_steering_angle
-    
-    def stabilize_steering_angle(self, steering_angle, new_steering_angle):
-        max_angle_deviation = math.pi / 2
-        angle_deviation = new_steering_angle - steering_angle
-        if abs(angle_deviation) > max_angle_deviation:
-            stabilized_steering_angle = steering_angle + (max_angle_deviation * angle_deviation / abs(angle_deviation))
-        else:
-            stabilized_steering_angle = new_steering_angle
-            
         return stabilized_steering_angle

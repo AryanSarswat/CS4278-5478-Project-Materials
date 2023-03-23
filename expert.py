@@ -6,7 +6,12 @@ class Expert:
     def __init__(self, high_level_path):
         self.LEFT = [0.5, 0.65]
         self.RIGHT = [0.3, -0.9]
-        self.STRAIGHT = [0.5, 0]
+        self.STRAIGHT = [0.4, 0]
+        self.FAST_STRAIGHT = [1, 0]
+        
+        self.buffer_length = 50
+        self.idx = 0
+        self.str_buffer = list(range(self.buffer_length))
         
         self.lane_follower = LaneFollower()
         self.reached = False
@@ -56,7 +61,11 @@ class Expert:
             
     def go_straight(self, obs):
         obs, angle = self.lane_follower.steer(obs)
+        self.str_buffer[self.idx] = angle
+        self.idx = (self.idx + 1) % self.buffer_length
         if angle == 0:
+            if sum(self.str_buffer) == 0:
+                return self.FAST_STRAIGHT
             return self.STRAIGHT
         return np.array([0.4, angle])
     
