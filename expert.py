@@ -4,12 +4,12 @@ import heapq
 
 class Expert:
     def __init__(self, high_level_path):
-        self.LEFT = [0.5, 0.65]
-        self.RIGHT = [0.3, -0.9]
+        self.LEFT = [0.5, 0.7]
+        self.RIGHT = [0.25, -0.9]
         self.STRAIGHT = [0.4, 0]
         self.FAST_STRAIGHT = [1, 0]
         
-        self.buffer_length = 50
+        self.buffer_length = 100
         self.idx = 0
         self.str_buffer = list(range(self.buffer_length))
         
@@ -60,7 +60,7 @@ class Expert:
         return self.RIGHT
             
     def go_straight(self, obs):
-        obs, angle = self.lane_follower.steer(obs)
+        angle = self.lane_follower.steer(obs)
         self.str_buffer[self.idx] = angle
         self.idx = (self.idx + 1) % self.buffer_length
         if angle == 0:
@@ -72,13 +72,13 @@ class Expert:
     def predict(self, coord, obs):
         action = self.actions[coord]
         if action == "left":
-            angle = self.lane_follower.steer(obs)[1]
+            angle = self.lane_follower.steer(obs)
             if abs(angle) > 0.1:
                 return np.array([0.2, angle])
             else:
                 return self.turn_left(obs)
         elif action == "right":
-            angle = self.lane_follower.steer(obs)[1]
+            angle = self.lane_follower.steer(obs)
             if abs(angle) > 0.1:
                 return np.array([0.2, angle])
             else:

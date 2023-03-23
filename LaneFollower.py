@@ -11,10 +11,10 @@ class LaneFollower:
         self.LOWER_YELLOW = np.array([20, 85, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
         
-        self.HEIGHT_CROP_SCALE = 1/2.5
+        self.HEIGHT_CROP_SCALE = 1/2
         
-        self.MIN_LINE_LENGTH = 125
-        self.MIN_VOTES = 20
+        self.MIN_LINE_LENGTH = 150
+        self.MIN_VOTES = 30
         self.MAX_LINE_GAP = 100
         self.prev_angle = 0
 
@@ -146,7 +146,7 @@ class LaneFollower:
         
         return lane_lines_w, lane_lines_y, lane_lines_comb
     
-    def display_one_line(self, frame, line, line_color=(0, 255, 0), line_width=15):
+    def display_one_line(self, frame, line, line_color=(0, 255, 0), line_width=10):
         line_image = np.zeros_like(frame)
         if line is not None:
             for line in line:
@@ -155,7 +155,7 @@ class LaneFollower:
                 line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
         return line_image
 
-    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=15):
+    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=10):
         line_image = np.zeros_like(frame)
         if lines is not None:
             for line in lines:
@@ -184,21 +184,31 @@ class LaneFollower:
             x2 = int(x1 - height / (2 / math.tan(0.01)))
         y2 = int(height / 2)
 
-        cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
         heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
 
         return heading_image
     
-    def distance_to_yellow(self, frame, lane_lines_y):
+    def check_if_yellow_is_on_right(self, frame):
+        lane_lines_y = self.detect_lane(frame)[1]
         height, width, _ = frame.shape
-        if lane_lines_y is not None:
-            for line in lane_lines_y:
-                for x1, y1, x2, y2 in line:
-                    if x1 > width/2:
-                        return width - x1
-                    else:
-                        return x1
-        return 0
+        if len(lane_lines_y) == 0:
+            return False
+        for line in lane_lines_y:
+            for x1, y1, x2, y2 in line:
+                if x1 < width/2 and x2 < width/2:
+                    return False
+        return True
+    
+    def check_if_yellow_is_on_left(self, frame):
+        height, width, _ = frame.shape
+        lane_lines_y = self.detect_lane(frame)[1]
+        if len(lane_lines_y) == 0:
+            return False
+        for line in lane_lines_y:
+            for x1, y1, x2, y2 in line:
+                if x1 < width/2 and x2 < width/2:
+                    return False
+        return True
         
     
     def steer(self, frame):
@@ -207,20 +217,22 @@ class LaneFollower:
 
         lane_lines_combined_img = self.display_lines(frame, lane_lines_combined)
         
-        cv2.imshow("Comb Lines", lane_lines_combined_img)
+        yellow_lane_img = self.display_lines(frame, lane_lines_y)
         
-        dist_y = self.distance_to_yellow(frame, lane_lines_y)
+        cv2.imshow("Comb Lines", lane_lines_combined_img)
+        cv2.imshow("Yellow Lines", yellow_lane_img)
+        
+        dist_y = self.check_if_yellow_is_on_right(frame)
         
         new_angle = self.compute_steering_angle_comb(frame, lane_lines_combined)
         
         # If it ends up in the wrong lane
-        if dist_y < -50:
-            new_angle -= np.pi
+        if dist_y and new_angle > 0:
+            new_angle -= np.pi / 2
         
         new_angle = self.stabilize_steering_angle_comb(self.prev_angle, new_angle, len(lane_lines_combined))
         self.prev_angle = new_angle
-        curr_heading_image = self.display_heading_line(frame, new_angle)
-        return curr_heading_image, new_angle
+        return new_angle
     
     def compute_steering_angle_comb(self, frame, lane_lines):
         if len(lane_lines) == 0:
@@ -251,7 +263,7 @@ class LaneFollower:
 
         return angle_to_mid_radian
     
-    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=8*np.pi/180):
+    def stabilize_steering_angle_comb(self, curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=15*np.pi/180, max_angle_deviation_one_lane=15*np.pi/180):
         if num_of_lane_lines == 2 :
             # if both lane lines detected, then we can deviate more
             max_angle_deviation = max_angle_deviation_two_lines
