@@ -44,6 +44,10 @@ class Expert:
         action = "stay"
         self.actions[coord] = action
         
+    def num_lines_detected(self, obs):
+        lanes = self.lane_follower.detect_lane(obs)[2]
+        return len(lanes)
+        
     def turn_left(self, obs):
         return self.LEFT
             
