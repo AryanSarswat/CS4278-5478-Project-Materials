@@ -138,9 +138,6 @@ class LaneFollower:
         edges_w, edges_y, edges_combined = self.detect_edges(frame)
         cropped_edges_w, cropped_edges_y, cropped_combined = self.isolate_roi(edges_w), self.isolate_roi(edges_y), self.isolate_roi(edges_combined)
         
-        cv2.imshow("edges_w", cropped_edges_w)
-        cv2.imshow("edges_y", cropped_edges_y)
-        
         line_segments_w, line_segments_y, line_segments_combined = self.detect_line_segments(cropped_edges_w), self.detect_line_segments(cropped_edges_y), self.detect_line_segments(cropped_combined)
         
         lane_lines_w = self.average_slope_intercept(frame, line_segments_w)

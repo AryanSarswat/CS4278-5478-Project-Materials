@@ -82,7 +82,7 @@ args.manual = True
 # simulator instantiation
 env = DuckietownEnv(
     domain_rand=False,
-    max_steps=1500,
+    max_steps=3000,
     map_name=args.map_name,
     seed=args.seed,
     user_tile_start=args.start_tile,
@@ -96,7 +96,10 @@ env.render()
 expert = PurePursuitExpert(env)
 expert2 = LaneFollower()
 map_img, goal, start_pos = env.get_task_info()
-expert_map = Expert(map_img, env)
+
+high_level_path = args.map_name + "_seed" + str(args.seed) + "_start_" + args.start_tile + "_goal_" + args.goal_tile + ".txt"
+high_level_path = "./testcases/milestone1_paths/" + high_level_path
+expert_map = Expert(high_level_path)
 
 print("start tile:", start_pos, " goal tile:", goal)
 
@@ -116,42 +119,42 @@ cv2.waitKey(200)
 obs, reward, done, info = env.step([1, 1])
 
 
-cv2.namedWindow("left_speed")
-cv2.namedWindow("right_speed")
-cv2.namedWindow("left_angle")
-cv2.namedWindow("right_angle")
+# cv2.namedWindow("left_speed")
+# cv2.namedWindow("right_speed")
+# cv2.namedWindow("left_angle")
+# cv2.namedWindow("right_angle")
 
-class Action:
-    def __init__(self):
-        self.left_speed = 0
-        self.right_speed = 0
-        self.left_angle = 0
-        self.right_angle = 0
+# class Action:
+#     def __init__(self):
+#         self.left_speed = 0
+#         self.right_speed = 0
+#         self.left_angle = 0
+#         self.right_angle = 0
         
-    def update_left_speed(self, val):
-        self.left_speed = val * 1.2 / 100
+#     def update_left_speed(self, val):
+#         self.left_speed = val * 1.2 / 100
     
-    def update_right_speed(self, val):
-        self.right_speed = val * 1.2 / 100
+#     def update_right_speed(self, val):
+#         self.right_speed = val * 1.2 / 100
         
-    def update_left_angle(self, val):
-        self.left_angle = val * np.pi / 100
+#     def update_left_angle(self, val):
+#         self.left_angle = val * np.pi / 100
     
-    def update_right_angle(self, val):
-        self.right_angle = val * -np.pi / 100
+#     def update_right_angle(self, val):
+#         self.right_angle = val * -np.pi / 100
         
-    def get_left_action(self):
-        return np.array([self.left_speed, self.left_angle])
+#     def get_left_action(self):
+#         return np.array([self.left_speed, self.left_angle])
 
-    def get_right_action(self):
-        return np.array([self.right_speed, self.right_angle])
+#     def get_right_action(self):
+#         return np.array([self.right_speed, self.right_angle])
 
-actions_table = Action()
+# actions_table = Action()
 
-cv2.createTrackbar("left_speed", "left_speed", 0, 100, actions_table.update_left_speed)
-cv2.createTrackbar("right_speed", "right_speed", 0, 100, actions_table.update_right_speed)
-cv2.createTrackbar("left_angle", "left_angle", 0, 100, actions_table.update_left_angle)
-cv2.createTrackbar("right_angle", "right_angle", 0, 100, actions_table.update_right_angle)
+# cv2.createTrackbar("left_speed", "left_speed", 0, 100, actions_table.update_left_speed)
+# cv2.createTrackbar("right_speed", "right_speed", 0, 100, actions_table.update_right_speed)
+# cv2.createTrackbar("left_angle", "left_angle", 0, 100, actions_table.update_left_angle)
+# cv2.createTrackbar("right_angle", "right_angle", 0, 100, actions_table.update_right_angle)
 
 # main loop
 if args.manual:
@@ -161,6 +164,8 @@ if args.manual:
     index = 0
     def update(dt):
         obs, reward, done, info = env.step([0, 0])
+        if done:
+            return
         action = np.array([0.0, 0.0])
 
         if key_handler[key.UP]:
@@ -168,17 +173,17 @@ if args.manual:
         elif key_handler[key.DOWN]:
             action = np.array([-0.44, 0])
         elif key_handler[key.LEFT]:
-            action = actions_table.get_left_action()
+            action = np.array([0.44, 0.44])
         elif key_handler[key.RIGHT]:
-            action = actions_table.get_right_action()
+            action = np.array([0.44, -0.44])
         elif key_handler[key.SPACE]:
             action = np.array([0, 0])
-        # else:
-        # #     #action = expert.predict(env)
-        #     preprocess, angle = expert2.steer(obs)
-        #     action = [0.3, angle]
-        # #     #print("expert angle = ", action[1])
-        # # Speed boost when pressing shift
+        else:
+        #     #action = expert.predict(env)
+            coord = info['curr_pos']
+            action = expert_map.predict(coord, obs)
+        #     #print("expert angle = ", action[1])
+        # Speed boost when pressing shift
         if key_handler[key.LSHIFT]:
             action *= 3
         
@@ -186,12 +191,14 @@ if args.manual:
             print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
         
         
-        preprocess, angle = expert2.steer(obs)
-        print("expert angle = ", angle)
+        #preprocess, angle = expert2.steer(obs)
+        #print("expert angle = ", angle)
+        print("action = ", action)
+        
         obs, reward, done, info = env.step(action)
 
         #cv2.imshow("lane_lines", img_lane_lines)
-        cv2.imshow("preprocess", preprocess)
+        #cv2.imshow("preprocess", preprocess)
         
         env.render()
 

@@ -2,62 +2,11 @@ import numpy as np
 from LaneFollower import LaneFollower
 import heapq
 
-class PriorityQueue:
-    def __init__(self):
-        self.queue = []
-        self._index = -1
-    
-    def push(self, item):
-        heapq.heappush(self.queue, item)
-    
-    def pop(self):
-        return heapq.heappop(self.queue)
-    
-    def __repr__(self):
-        return self.queue.__repr__()       
-    
-    def __len__(self):
-        return len(self.queue)
-    
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        self._index += 1
-        if self._index >= len(self.queue):
-            self._index = -1
-            raise StopIteration
-        else:
-            return self.queue[self._index]
-
-class Node:
-    def __init__(self, parent=None, position=None):
-        self.parent = parent
-        self.position = position
-        
-        
-        self.g = 0
-        self.h = 0
-        self.f = 0
-        
-    def isGoal(self, goal):
-        if self.position[0] == goal[0] and self.position[1] == goal[1]:
-            return True
-        else:
-            return False
-        
-    def __repr__(self):
-        return "{" + ",".join(str(x) for x in self.position) + "}"
-        
-    def __eq__(self, other):
-        return self.position == other.position
-
 class Expert:
-    def __init__(self, env, high_level_path):
-        self.LEFT = [0.6, np.pi]
-        self.RIGHT = [0.9, -np.pi]
+    def __init__(self, high_level_path):
+        self.LEFT = [0.5, 0.7]
+        self.RIGHT = [0.3, -1]
         self.STRAIGHT = [0.44, 0]
-        self.env = env
         
         self.lane_follower = LaneFollower()
         
@@ -71,31 +20,49 @@ class Expert:
         if temp[-1] == "":
             temp.pop(-1)
         
-        for i in temp:
+        for i in range(len(temp[:-1])):
             # Find index of second comma
-            index = i.find(",", i.find(",") + 1)
-            coords = i[:index]
-            action = i[index + 1:].strip()
+            curr = temp[i]
+            next_ = temp[i + 1]
+            
+            index_c = curr.find(",", curr.find(",") + 1)
+            index_n = next_.find(",", next_.find(",") + 1)
+
+            coords = curr[:index_c]
+            action = next_[index_n + 1:].strip()
             x = int(coords[1:coords.find(",")])
             y = int(coords[coords.find(",") + 1:-1])
             coord = (x, y)
             self.actions[coord] = action
         
-    def turn_left(self):
-        for _ in range(10):
-            obs, reward, done, info = self.env.step(self.LEFT)
-        return info['cur_pos'], obs
+    def turn_left(self, obs):
+        return self.LEFT
             
-    def turn_right(self):
-        for _ in range(5):
-            obs, reward, done, info = self.env.step(self.RIGHT)
-        return info['cur_pos'], obs
+    def turn_right(self, obs):
+        return self.RIGHT
             
-    def straight(self, obs):
-        for _ in range(3):
-            angle = self.lane_follower.steer(obs)
-            obs, reward, done, info = self.env.step([0.3, angle])
-        return info['cur_pos'], obs
+    def go_straight(self, obs):
+        obs, angle = self.lane_follower.steer(obs)
+        return np.array([0.3, angle])
+    
+    def predict(self, coord, obs):
+        action = self.actions[coord]
+        if action == "left":
+            angle = self.lane_follower.steer(obs)[1]
+            if abs(angle) > 0.1:
+                return np.array([0.2, angle])
+            else:
+                return self.turn_left(obs)
+        elif action == "right":
+            angle = self.lane_follower.steer(obs)[1]
+            if abs(angle) > 0.1:
+                return np.array([0.2, angle])
+            else:
+                return self.turn_right(obs)
+        elif action == "forward":
+            return self.go_straight(obs)
+        else:
+            print("Error: invalid action")
 
 
 if __name__ == "__main__":
