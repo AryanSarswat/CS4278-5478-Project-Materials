@@ -4,8 +4,8 @@ from LaneFollower import LaneFollower
 class Expert:
     def __init__(self, high_level_path):
         self.LEFT = [0.5, 0.7]
-        self.RIGHT = [0.25, -0.85]
-        self.STRAIGHT = [0.4, 0]
+        self.RIGHT = [0.3, -1.2]
+        self.STRAIGHT = [0.6, 0]
         self.FAST_STRAIGHT = [1, 0]
         
         self.buffer_length = 100
@@ -69,20 +69,28 @@ class Expert:
         return np.array([0.4, angle])
     
     def predict(self, coord, obs):
+<<<<<<< HEAD
         try:
             action = self.actions[coord]
         except KeyError:
             action = "forward"
+=======
+        action = ""
+        if coord in self.actions:
+            action = self.actions[coord]
+        else:
+            action = "None"
+>>>>>>> 038d2d327f004407a5e5488d1a917d7fd2df5fb5
         if action == "left":
-            angle = self.lane_follower.steer(obs)
+            angle = self.lane_follower.steer(obs) 
             if abs(angle) > 0.1:
-                return np.array([0.2, angle])
+                return np.array([0.4, angle *1.3])
             else:
                 return self.turn_left(obs)
         elif action == "right":
-            angle = self.lane_follower.steer(obs)
+            angle = self.lane_follower.steer(obs) 
             if abs(angle) > 0.1:
-                return np.array([0.2, angle])
+                return np.array([0.4, angle *1.3])
             else:
                 return self.turn_right(obs)
         elif action == "forward":
@@ -92,6 +100,8 @@ class Expert:
                 return np.array([0, 0])
             self.reached = True
             return np.array([1, 0])
+        elif action == "None":
+            return np.array([0, None])
         else:
             print("Error: invalid action")
 
