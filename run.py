@@ -67,22 +67,45 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     actions_taken = []
     
     step = 0
-    max_step = 25
+    max_step = 30
     line_detected = False
+    duckieReward = 0
+    init_prev_angle = 0
+    sweepDir = False
+    needToSweep = True
+    sweepSteps = 20
+    currentSweepSteps = 0
+    is_wrong_lane = True
     # Initial lane following
-    while True:
+    while step < max_step:
         num_lines = expert.num_lines_detected(obs)
         if num_lines > 0:
             line_detected = True
         angle = expert.predict(info['curr_pos'], obs)[1]
-        if angle < 0:
-            action = np.array([-0.01, angle * 0.5])
+        if angle == None: # action does not exist
+            action = np.array([0.1,0])
+        elif angle < 0:
+            action = np.array([-0.1, angle])
         elif angle > 0:
-            action = np.array([-0.01, angle * 0.5])
+            action = np.array([-0.1, angle])
+        elif angle == 0 and init_prev_angle != 0:
+            action = np.array([-0.1, 0.0])
         else:
-            action = np.array([-0.1, 0])
+            action = np.array([-0.01 if needToSweep else -0.1, 1.2 if sweepDir and needToSweep else -1.2 if needToSweep else 0.5 ])
+            if needToSweep:
+                currentSweepSteps += 1
+                if currentSweepSteps > sweepSteps:
+                    sweepSteps += 5
+                    sweepDir = not sweepDir
+                    currentSweepSteps = 0
+        
+        init_prev_angle = angle
+        if num_lines > 0:
+            needToSweep = False
 
+        action = action if action[1] is not None else np.array([action[0], 0])
         obs, reward, done, info = env.step(action)
+        duckieReward += reward
         actions_taken.append(action)
         env.render()
         
@@ -91,25 +114,27 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
         # Give allowance if no lane detected
         if not line_detected:
             step -= 0.5
+        if needToSweep or is_wrong_lane: # still cannot find, continue to sweep
+            step -= 0.5
         
-        if step > max_step:
-            break
+    # print("Done adjusting")
 
-        
-    
     while info['curr_pos'] != goal:
         curr_pos = info['curr_pos']
         action = expert.predict(curr_pos, obs)
+        action = action if action[1] is not None else np.array([0.1, 0])
         obs, reward, done, info = env.step(action)
         actions_taken.append(action)
+        duckieReward += reward
         env.render()
     
-    print(f"Finished map {map_name}")
+    print(f"Finished map {map_name}, reward: {duckieReward}")
     
     if done:
         np.savetxt(f'./controls/{map_name}_seed{seed}_start_{start_pos[0]},{start_pos[1]}_goal_{goal[0]},{goal[1]}.txt', actions_taken, delimiter=',')
         
     env.close()
+    return duckieReward
 
 
 MAP_1 = []
@@ -118,6 +143,8 @@ MAP_3 = []
 MAP_4 = []
 MAP_5 = []
 
+all_maps = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
+all_rewards = [[], [], [], [], []]
 for test in test_cases:
     map_name = test
     if "map1" in map_name:
@@ -141,10 +168,25 @@ for test in test_cases:
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-map_name = "map5_4"
-seed = test_cases[map_name]["seed"][0]
-start = list2str(test_cases[map_name]["start"])
-goal = list2str(test_cases[map_name]["goal"])
+# map_name = "map5_0"
+# seed = test_cases[map_name]["seed"][0]
+# start = list2str(test_cases[map_name]["start"])
+# goal = list2str(test_cases[map_name]["goal"])
 
-run_test(map_name, seed, start, goal, 1500)
-    
+# run_test(map_name, seed, start, goal, 1500)
+total = 0
+
+for i, map in enumerate(all_maps):
+    for test in map:
+        map_name = test
+        seed = test_cases[test]["seed"][0]
+        start = list2str(test_cases[test]["start"])
+        goal = list2str(test_cases[test]["goal"])
+        
+        reward = run_test(map_name, seed, start, goal, 1500)
+        all_rewards[i].append(reward)
+        total += reward
+
+np.savetxt("./rewards.txt", all_rewards, delimiter=",")
+
+print(f"Reward is {total}")

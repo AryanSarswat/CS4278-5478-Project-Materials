@@ -206,7 +206,7 @@ class LaneFollower:
             return False
         for line in lane_lines_y:
             for x1, y1, x2, y2 in line:
-                if x1 < width/2 and x2 < width/2:
+                if x1 > width/2 and x2 > width/2:
                     return False
         return True
         
