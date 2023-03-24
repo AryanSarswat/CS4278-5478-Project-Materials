@@ -67,7 +67,7 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     actions_taken = []
     
     step = 0
-    max_step = 30
+    max_step = 20
     line_detected = False
     duckieReward = 0
     init_prev_angle = 0
@@ -85,9 +85,9 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
         if angle == None: # action does not exist
             action = np.array([0.1,0])
         elif angle < 0:
-            action = np.array([-0.1, angle])
+            action = np.array([-0.1, angle * 0.8])
         elif angle > 0:
-            action = np.array([-0.1, angle])
+            action = np.array([-0.1, angle * 0.8])
         elif angle == 0 and init_prev_angle != 0:
             action = np.array([-0.1, 0.0])
         else:
@@ -158,7 +158,7 @@ for test in test_cases:
     elif "map5" in map_name:
         MAP_5.append(test)
 
-
+print(all_maps)
 # for test in MAP_5:
 #     map_name = test
 #     seed = test_cases[test]["seed"][0]
@@ -168,12 +168,13 @@ for test in test_cases:
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-# map_name = "map5_0"
+# map_name = "map2_4"
 # seed = test_cases[map_name]["seed"][0]
 # start = list2str(test_cases[map_name]["start"])
 # goal = list2str(test_cases[map_name]["goal"])
 
 # run_test(map_name, seed, start, goal, 1500)
+
 total = 0
 
 for i, map in enumerate(all_maps):
@@ -186,6 +187,8 @@ for i, map in enumerate(all_maps):
         reward = run_test(map_name, seed, start, goal, 1500)
         all_rewards[i].append(reward)
         total += reward
+
+print(all_rewards)
 
 np.savetxt("./rewards.txt", all_rewards, delimiter=",")
 
