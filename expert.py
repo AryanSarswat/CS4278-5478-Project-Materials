@@ -3,9 +3,9 @@ from LaneFollower import LaneFollower
 
 class Expert:
     def __init__(self, high_level_path):
-        self.LEFT = [0.5, 0.7]
-        self.RIGHT = [0.25, -0.85]
-        self.STRAIGHT = [0.4, 0]
+        self.LEFT = [0.8, 1.5]
+        self.RIGHT = [0.65, -2.2]
+        self.STRAIGHT = [0.9, 0]
         self.FAST_STRAIGHT = [1, 0]
         
         self.buffer_length = 100
@@ -60,28 +60,29 @@ class Expert:
             
     def go_straight(self, obs):
         angle = self.lane_follower.steer(obs)
+        # print(angle)
         self.str_buffer[self.idx] = angle
         self.idx = (self.idx + 1) % self.buffer_length
         if angle == 0:
-            if sum(self.str_buffer) == 0:
+            if sum(self.str_buffer) <= 0.3:
                 return self.FAST_STRAIGHT
             return self.STRAIGHT
-        return np.array([0.4, angle])
+        return np.array([0.3, angle]) # added rotation scale
     
-    def predict(self, coord, obs):
+    def predict(self, coord, obs, is_buffer=False):
         try:
             action = self.actions[coord]
         except KeyError:
             action = "forward"
         if action == "left":
             angle = self.lane_follower.steer(obs)
-            if abs(angle) > 0.1:
+            if abs(angle) > 0.1 or is_buffer:
                 return np.array([0.2, angle])
             else:
                 return self.turn_left(obs)
         elif action == "right":
             angle = self.lane_follower.steer(obs)
-            if abs(angle) > 0.1:
+            if abs(angle) > 0.1 or is_buffer:
                 return np.array([0.2, angle])
             else:
                 return self.turn_right(obs)

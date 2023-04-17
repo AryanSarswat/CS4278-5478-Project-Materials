@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import math
+import functools
 
 class LaneFollower:
     def __init__(self):
@@ -8,7 +9,7 @@ class LaneFollower:
         self.LOWER_WHITE = np.array([0, 0, 255 - self.W_SENSITIVITY])
         self.UPPER_WHITE = np.array([255, self.W_SENSITIVITY, 235])
         
-        self.LOWER_YELLOW = np.array([20, 85, 80])
+        self.LOWER_YELLOW = np.array([15, 80, 80])
         self.UPPER_YELLOW = np.array([30, 255, 255])
         
         self.HEIGHT_CROP_SCALE = 1/2.25
@@ -17,6 +18,9 @@ class LaneFollower:
         self.MIN_VOTES = 30
         self.MAX_LINE_GAP = 100
         self.prev_angle = 0
+        self.prev_wrong_lane_buffer_length = 15
+        self.prev_wrong_lane_buffer = [False for _ in range(self.prev_wrong_lane_buffer_length)]
+        self.prev_wrong_lane_idx = 0
 
     def detect_edges(self, img):
         # Blur first to smoothen
@@ -206,6 +210,28 @@ class LaneFollower:
             return False
         for line in lane_lines_y:
             for x1, y1, x2, y2 in line:
+                if x1 > width/2 and x2 > width/2:
+                    return False
+        return True
+
+    def check_if_white_is_on_left(self, frame):
+        height, width, _ = frame.shape
+        lane_lines_w = self.detect_lane(frame)[0]
+        if len(lane_lines_w) == 0:
+            return False
+        for line in lane_lines_w:
+            for x1, y1, x2, y2 in line:
+                if x1 > width/2 and x2 > width/2:
+                    return False
+        return True
+    
+    def check_if_white_is_on_right(self, frame):
+        height, width, _ = frame.shape
+        lane_lines_w = self.detect_lane(frame)[0]
+        if len(lane_lines_w) == 0:
+            return False
+        for line in lane_lines_w:
+            for x1, y1, x2, y2 in line:
                 if x1 < width/2 and x2 < width/2:
                     return False
         return True
@@ -223,15 +249,36 @@ class LaneFollower:
         cv2.imshow("Yellow Lines", yellow_lane_img)
         
         dist_y = self.check_if_yellow_is_on_right(frame)
+        dist_w = self.check_if_white_is_on_left(frame)
+
+        correct_y = self.check_if_yellow_is_on_left(frame)
+        correct_w = self.check_if_white_is_on_right(frame)
         
         new_angle = self.compute_steering_angle_comb(frame, lane_lines_combined)
+
+        correct_overwrite = (correct_w or correct_y) and not((dist_y and new_angle >= 0) or (dist_w and new_angle <= 0))
         
         # If it ends up in the wrong lane
-        if dist_y and new_angle > 0:
-            new_angle -= np.pi / 2
+        # print(f"yellow on right: {dist_y}, white on left: {dist_w}, new_angle: {new_angle}")
+
+        if (dist_y and new_angle >= 0) or (dist_w and new_angle <= 0):
+            new_angle = (new_angle - np.pi / 2) * 1.5 # add scaling factor in attempt to correct faster
+        # update buffer
+        # print(f"{self.prev_wrong_lane_buffer} {functools.reduce(lambda x, y: y or x, self.prev_wrong_lane_buffer, False)} {self.prev_angle}")
+        # print(f"correct_y: {correct_y}; correct_w: {correct_w}; dist_y: {dist_y}; dist_w: {dist_w}")
+        if functools.reduce(lambda x, y: y or x, self.prev_wrong_lane_buffer, False) and not correct_overwrite:
+            new_angle = self.prev_angle * 1.1
+
+        self.prev_wrong_lane_buffer[self.prev_wrong_lane_idx] = ((dist_y and new_angle > 0) or (dist_w and new_angle < 0))
+        self.prev_wrong_lane_idx = (self.prev_wrong_lane_idx + 1) % self.prev_wrong_lane_buffer_length
+
+        if functools.reduce(lambda x, y: y or x, self.prev_wrong_lane_buffer, False) and correct_overwrite:
+            print(f"correct overwrite")
+            self.prev_wrong_lane_buffer = [False for _ in range(self.prev_wrong_lane_buffer_length)]
         
         new_angle = self.stabilize_steering_angle_comb(self.prev_angle, new_angle, len(lane_lines_combined))
         self.prev_angle = new_angle
+        self.prev_wrong_lane = (dist_y and new_angle > 0) or (dist_w and new_angle < 0)
         return new_angle
     
     def compute_steering_angle_comb(self, frame, lane_lines):
@@ -243,10 +290,10 @@ class LaneFollower:
             x1, _, x2, _ = lane_lines[0][0]
             x_offset = x2 - x1
             
-            if x1 > width / 1.5 and x_offset < 0:
+            if x1 > (width / 1.5) and x_offset < 0:
                 x_offset = -x_offset
                 
-            if x1 < width / 3.5 and x_offset > 0:
+            if x1 < (width / 3.5) and x_offset > 0:
                 x_offset = -x_offset
                 
         else:
