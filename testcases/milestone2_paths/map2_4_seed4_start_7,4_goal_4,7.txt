@@ -1,5 +1,5 @@
 (7, 4), forward
-(7, 5), left
+(7, 5), forward
 (7, 6), forward
 (7, 7), forward
 (6, 7), right

@@ -2,9 +2,9 @@
 (3, 5), forward
 (3, 4), forward
 (3, 3), forward
-(3, 2), forward
-(3, 1), forward
-(4, 1), right
+(4, 3), right
+(5, 3), forward
+(5, 2), left
 (5, 1), forward
-(6, 1), forward
+(6, 1), right
 (7, 1), forward
