@@ -12,21 +12,25 @@ def plan(src, dest, map, heading):
     returns path as ((y, x), intention, (previous subpath))
     '''
     # probably can compute rough heading pointing to duckie
-    dy = dest[0] - src[0] 
-    dx = dest[1] - src[1]
-    if abs(dy) >= abs(dx):
-        heading = 2 if dy > 0 else 0
-    else:
-        heading = 3 if dx > 0 else 1
+    # dy = dest[0] - src[0] 
+    # dx = dest[1] - src[1]
+    # if abs(dy) >= abs(dx):
+    #     heading = 2 if dy > 0 else 0
+    # else:
+    #     heading = 3 if dx > 0 else 1
     print(f"estimated heading: {heading}")
     def isValidNode(node): # keep if true
         coordinate, _, _ = node
         return 0 <= coordinate[0] < len(map) and 0 <= coordinate[1] < len(map[0]) and map[coordinate[0]][coordinate[1]]
     pq = PriorityQueue()
-    pq.put((heuristics(src, dest, 0), ((src, heading, 0),None)))
+    pq.put((heuristics(src, dest, 0, [(src, 0, 0),]), ((src, 0, 0),)))
+    pq.put((heuristics(src, dest, 0, [(src, 1, 0),]), ((src, 1, 0),)))
+    pq.put((heuristics(src, dest, 0, [(src, 2, 0),]), ((src, 2, 0),)))
+    pq.put((heuristics(src, dest, 0, [(src, 3, 0),]), ((src, 3, 0),)))
     print("Generating plan")
     while not pq.empty():
         h, path = pq.get()
+        
         recentNode = path[0]
         y, x = recentNode[0]
         allNodes = []
@@ -47,13 +51,13 @@ def plan(src, dest, map, heading):
                 continue # seen state before, no need to re-add to queue
             if coordinate == dest:
                 return tuple([(coordinate, enterDir, intention)] + list(path))
-            node_h = heuristics(coordinate, dest, intention)
+            node_h = heuristics(coordinate, dest, intention, path)
             pq.put((node_h, tuple([(coordinate, enterDir, intention),] + list(path))  ) )
     print("Generating done")
     return None
 
-def heuristics(current, dest, intention):
-    return abs(current[0]-dest[0]) + abs(current[1]-dest[1]) + 1 if intention > 0 else 0
+def heuristics(current, dest, intention, path):
+    return abs(current[0]-dest[0]) + abs(current[1]-dest[1]) + 1 if intention > 0 else 0 + len(path)
 
 def parse(tiles):
     '''
@@ -76,13 +80,13 @@ def view_parsed_map(map_data, src, dest):
             row_total += "o " if col else "- "
         row_total += "\n"
         total += row_total
-    print(total)
+    # print(total)
     return total
 
 def generate_paths(path, filename):
     print("Saving at: " + filename)
     with open(filename, "w") as f:
-        for i, node in enumerate(path[::-1][1:]):
+        for i, node in enumerate(path[::-1]):
             coordinate_yx, _, intention = node
             y, x = coordinate_yx
             intention = direction[intention]

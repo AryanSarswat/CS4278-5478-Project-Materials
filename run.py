@@ -102,9 +102,9 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     map_img[goal[1] * 100: goal[1] * 100 + 100, goal[0] * 100: goal[0] * 100 + 100] = [0, 0, 255]
     map_img[start_pos[1] * 100: start_pos[1] * 100 + 100, start_pos[0] * 100: start_pos[0] * 100 + 100] = [0, 255, 0]
     
-    cv2.imshow("map", map_img)
-    cv2.imwrite('map5_0.jpg', map_img)
-    cv2.waitKey(200)
+    # cv2.imshow("map", map_img)
+    # cv2.imwrite('map5_0.jpg', map_img)
+    # cv2.waitKey(200)
     
     obs, reward, done, info = env.step([0, 0])
     
@@ -167,8 +167,7 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     
     # print("Done adjusting")
 
-    print("Init complete")
-    action = [0, 0]
+    action = [0, 0] # set initial episode
     obs, reward, done, info = env.step(action)
     
     
@@ -185,13 +184,12 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
         duckieReward += reward
         env.render()
     
-    print(f"Finished map {map_name}, reward: {duckieReward}")
+    print(f"Finished map {map_name}, reward: {cum_rewards / episodes_lapsed}")
     
     if done:
         np.savetxt(f'./controls/{map_name}_seed{seed}_start_{start_pos[0]},{start_pos[1]}_goal_{goal[0]},{goal[1]}.txt', actions_taken, delimiter=',')
-    print(f"Reward is: {cum_rewards / episodes_lapsed}")
     env.close()
-    return duckieReward
+    return cum_rewards / episodes_lapsed
 
 test_cases = json.load(open("./testcases/milestone2.json"))
 
@@ -204,12 +202,10 @@ test_cases = json.load(open("./testcases/milestone2.json"))
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-map_name = "map2_1" #2_1, 2_2, 2_3, 3_1, 4_0, 4_1, 4_2, 5_0, 5_1, 5_3, 5_4
+map_name = "map1_4" # 5_4, 4_3, 4_4, 3_1, 3_2, 2_0, 2_4
+                    # overrun: 1_1, 1_3(barely)
 seed = test_cases[map_name]["seed"][0]
 start = list2str(test_cases[map_name]["start"])
 goal = list2str(test_cases[map_name]["goal"])
 
 run_test(map_name, seed, start, goal, 1500)
-    
-
-print(f"Reward is {total}")
