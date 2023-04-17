@@ -211,8 +211,6 @@ class LaneFollower:
         for line in lane_lines_y:
             for x1, y1, x2, y2 in line:
                 if x1 > width/2 and x2 > width/2:
-<<<<<<< HEAD
-=======
                     return False
         return True
 
@@ -235,7 +233,6 @@ class LaneFollower:
         for line in lane_lines_w:
             for x1, y1, x2, y2 in line:
                 if x1 < width/2 and x2 < width/2:
->>>>>>> 89cb59546f8dc111a3e7b55f6f1a2d26eec4e3b0
                     return False
         return True
         
