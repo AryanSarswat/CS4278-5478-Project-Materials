@@ -103,7 +103,7 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     map_img[start_pos[1] * 100: start_pos[1] * 100 + 100, start_pos[0] * 100: start_pos[0] * 100 + 100] = [0, 255, 0]
     
     # cv2.imshow("map", map_img)
-    # cv2.imwrite('map5_0.jpg', map_img)
+    cv2.imwrite(map_name + '.jpg', map_img)
     # cv2.waitKey(200)
     
     obs, reward, done, info = env.step([0, 0])
@@ -111,73 +111,88 @@ def run_test(map_name, seed, start_tile, goal_tile, max_steps):
     actions_taken = []
     
     step = 0
-    max_step = 20
+    max_step = 10
     line_detected = False
     init_prev_angle = 0
     sweepDir = False
     needToSweep = True
-    sweepSteps = 20
+    sweepSteps = 5
     currentSweepSteps = 0
     is_wrong_lane = True
     cum_rewards = 0
     episodes_lapsed = 0
-    max_init_episode = 100
-    # Initial lane following
-    # while episodes_lapsed < max_init_episode:
-    #     num_lines = expert.num_lines_detected(obs)
-    #     if num_lines > 0:
-    #         line_detected = True
-    #     angle = expert.predict(info['curr_pos'], obs, is_buffer=True)[1]
-    #     if angle == None: # action does not exist
-    #         action = np.array([0.1,0])
-    #     elif angle < 0:
-    #         action = np.array([-0.05, angle * 0.8])
-    #     elif angle > 0:
-    #         action = np.array([-0.05, angle * 0.8])
-    #     elif angle == 0 and init_prev_angle != 0:
-    #         action = np.array([-0.1, 0.0])
-    #     else:
-    #         action = np.array([-0.01 if needToSweep else -0.1, -1.2 if sweepDir and needToSweep else 1.2 if needToSweep else 0.5 ])
-    #         if needToSweep:
-    #             currentSweepSteps += 1
-    #             if currentSweepSteps > sweepSteps:
-    #                 sweepSteps += 5
-    #                 sweepDir = not sweepDir
-    #                 currentSweepSteps = 0
+    max_init_episode = 25
+    #Initial lane following
+    while episodes_lapsed < max_init_episode:
+        num_lines = expert.num_lines_detected(obs)
+        if num_lines > 0:
+            line_detected = True
+        angle = expert.predict(info['curr_pos'], obs, is_buffer=True)[1]
+        if angle == None: # action does not exist
+            action = np.array([0.1,0])
+        elif angle < 0:
+            action = np.array([0.4, angle * 0.8])
+        elif angle > 0:
+            action = np.array([0.4, angle * 0.8])
+        elif angle == 0 and init_prev_angle != 0:
+            action = np.array([-0.1, 0.0])
+        else:
+            action = np.array([-0.01 if needToSweep else -0.1, -1.2 if sweepDir and needToSweep else 1.2 if needToSweep else 0.5 ])
+            if needToSweep:
+                currentSweepSteps += 1
+                if currentSweepSteps > sweepSteps:
+                    sweepSteps += 5
+                    sweepDir = not sweepDir
+                    currentSweepSteps = 0
         
-    #     init_prev_angle = angle
-    #     if num_lines > 0:
-    #         needToSweep = False
+        init_prev_angle = angle
+        if num_lines > 0:
+            needToSweep = False
 
-    #     action = action if action[1] is not None else np.array([action[0], 0])
-    #     obs, reward, done, info = env.step(action)
-    #     # print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
-    #     cum_rewards += reward
-    #     actions_taken.append(action)
-    #     env.render()
+        action = action if action[1] is not None else np.array([action[0], 0])
+        obs, reward, done, info = env.step(action)
+        # print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
+        cum_rewards += reward
+        actions_taken.append(action)
+        env.render()
         
-    #     step += 1
-    #     episodes_lapsed += 1
+        step += 1
+        episodes_lapsed += 1
         
-    #     # Give allowance if no lane detected
-    #     if not line_detected:
-    #         step -= 0.5
-    #     if needToSweep or is_wrong_lane: # still cannot find, continue to sweep
-    #         step -= 0.5
+        # Give allowance if no lane detected
+        if not line_detected:
+            step -= 0.5
+        if needToSweep or is_wrong_lane: # still cannot find, continue to sweep
+            step -= 0.5
     
-    # print("Done adjusting")
+    print("Done adjusting")
 
     action = [0, 0] # set initial episode
     obs, reward, done, info = env.step(action)
-    
-    
     duckieReward = 0
+    
+    warmup = True
+    warmup_steps = 20
+    if warmup:
+        for i in range(warmup_steps):
+            curr_pos = info['curr_pos']
+            action = expert.predict(curr_pos, obs, is_buffer=False)
+            action = [-0.4, 0] if i > 5 else action
+            action = action if action[1] is not None else np.array([0.1, 0])
+            obs, reward, done, info = env.step(action)
+            cum_rewards += reward
+            episodes_lapsed += 1
+            actions_taken.append(action)
+            duckieReward += reward
+            env.render()
+    
     while info['curr_pos'] != goal and episodes_lapsed < 1500:
         curr_pos = info['curr_pos']
         action = ELaneFollower(obs, info, action)
+        #action = expert.predict(curr_pos, obs, is_buffer=False)
         action = action if action[1] is not None else np.array([0.1, 0])
         obs, reward, done, info = env.step(action)
-        # print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
+        print(f"current pose = {info['curr_pos']}, step count = {env.unwrapped.step_count}, step reward = {reward:.3f}")
         cum_rewards += reward
         episodes_lapsed += 1
         actions_taken.append(action)
@@ -202,7 +217,7 @@ test_cases = json.load(open("./testcases/milestone2.json"))
 #     run_test(map_name, seed, start, goal, 1500)
 
 
-map_name = "map1_4" # 5_4, 4_3, 4_4, 3_1, 3_2, 2_0, 2_4
+map_name = "map4_4" #4_4
                     # overrun: 1_1, 1_3(barely)
 seed = test_cases[map_name]["seed"][0]
 start = list2str(test_cases[map_name]["start"])
